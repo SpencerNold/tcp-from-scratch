@@ -4,22 +4,20 @@
 #include "rawsocket.h"
 #include "eth.h"
 
-#include <stdio.h>
+#include <sys/sysctl.h>
+#include <net/if_dl.h>
+#include <net/route.h>
+#include <netinet/if_ether.h>
 #include <string.h>
 
-int arp_request(const char* interface, const char* dst_addr) {
-    // arp table lookup here
-
+int arp_request(const char* interface, uint32_t dst_addr) {
     char buffer[56] = {0};
-    
     unsigned char dst_mac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
     unsigned char src_mac[6];
     net_get_src_mac(interface, (unsigned char*) src_mac);
-
     struct eth_h* ethh = (struct eth_h*) buffer;
     eth_fill_header(ethh, dst_mac, src_mac, sys_htons(0x0806));
-
-    struct arp_req* arpr = (struct arp_req*)(((unsigned char*) buffer) + sizeof(ethh));
+    struct arp_req* arpr = (struct arp_req*)(((unsigned char*) buffer) + 14);
     arpr->htype = sys_htons(1);
     arpr->ptype = sys_htons(0x0800);
     arpr->hlen = 6;
@@ -28,17 +26,44 @@ int arp_request(const char* interface, const char* dst_addr) {
     memcpy(arpr->sha, src_mac, 6);
     arpr->spa = net_get_src_addr(interface);
     // skip tha as it should remain 0
-    arpr->tpa = sys_inet_addr(dst_addr);
-
-    for (int i = 0; i < 56; i++) {
-        printf("%02X ", (unsigned char) buffer[i]);
-    }
-    printf("\n");
-
-    void* handle = rawsock_open();
+    arpr->tpa = dst_addr;
+    void* handle = rawsock_open(interface);
     if (!handle) {
         return -1;
     }
     rawsock_send(handle, (unsigned char*) buffer, 56);
+    rawsock_close(handle);
     return 0;
+}
+
+int arp_table_lookup(uint32_t address, uint8_t* mac) {
+    int mib[6] = { CTL_NET, PF_ROUTE, 0, AF_INET, NET_RT_FLAGS, RTF_LLINFO };
+    size_t needed;
+    if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0) {
+        return -2;
+    }
+    char data[needed];
+    if (sysctl(mib, 6, data, &needed, NULL, 0) < 0) {
+        return -3;
+    }
+    char* buf = (char*) data;
+    char* lim = buf + needed;
+    char* next;
+    struct rt_msghdr* rtm;
+    struct sockaddr_inarp* sin;
+    struct sockaddr_dl* sdl;
+    for (next = buf; next < lim; next += rtm->rtm_msglen) {
+        rtm = (struct rt_msghdr*) next;
+        sin = (struct sockaddr_inarp*) (rtm + 1);
+        sdl = (struct sockaddr_dl*) (sin + 1);
+        if (address != sin->sin_addr.s_addr) {
+            continue;
+        }
+        unsigned char* mac_addr = (unsigned char*) LLADDR(sdl);
+        for (int i = 0; i < 6; i++) {
+            mac[i] = mac_addr[i];
+        }
+        return 0;
+    }
+    return -1;
 }

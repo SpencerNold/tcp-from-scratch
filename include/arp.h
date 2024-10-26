@@ -15,6 +15,8 @@ struct arp_req {
     uint32_t tpa;
 } __attribute__((packed));
 
-int arp_request(const char*, const char*);
+int arp_table_lookup(uint32_t, uint8_t*);
+int arp_request(const char*, uint32_t);
+
 
 #endif

@@ -7,6 +7,8 @@
 #include <arpa/inet.h>
 #include <ifaddrs.h>
 #include <net/if_dl.h>
+#include <sys/sysctl.h>
+#include <net/route.h>
 #include <string.h>
 
 uint8_t stored_src_mac_address[6];
@@ -20,19 +22,23 @@ void store_inet_addrs(const char* interface) {
         return;
     }
     for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
-        if (ifa->ifa_addr == NULL || ifa->ifa_addr->sa_family != AF_LINK) {
+        if (ifa->ifa_addr == NULL) {
             continue;
         }
         if (strcmp(ifa->ifa_name, interface) == 0) {
             // MAC Addr
-            struct sockaddr_dl* sdl = (struct sockaddr_dl*) ifa->ifa_addr;
-            unsigned char* mac = (unsigned char*) LLADDR(sdl);
-            for (int i = 0; i < 6; i++) {
-                stored_src_mac_address[i] = mac[i];
+            if (ifa->ifa_addr->sa_family == AF_LINK) {
+                struct sockaddr_dl* sdl = (struct sockaddr_dl*) ifa->ifa_addr;
+                unsigned char* mac = (unsigned char*) LLADDR(sdl);
+                for (int i = 0; i < 6; i++) {
+                    stored_src_mac_address[i] = mac[i];
+            }
             }
             // IPv4 Addr
-            struct sockaddr_in* sin = (struct sockaddr_in*) ifa->ifa_addr;
-            stored_src_ipv4_address = sin->sin_addr.s_addr;
+            if (ifa->ifa_addr->sa_family == AF_INET) {
+                struct sockaddr_in* sin = (struct sockaddr_in*) ifa->ifa_addr;
+                stored_src_ipv4_address = sin->sin_addr.s_addr;
+            }
         }
     }
     freeifaddrs(ifaddr);
@@ -55,6 +61,50 @@ uint32_t net_get_src_addr(const char* interface) {
         store_inet_addrs(interface);
     }
     return stored_src_ipv4_address;
+}
+
+#define ROUNDUP(a, size) (((a) & ((size) - 1)) ? (1 + ((a) | ((size) - 1))) : (a))
+
+uint32_t net_get_default_gateway() {
+    int mib[6] = { CTL_NET, PF_ROUTE, 0, AF_INET, NET_RT_FLAGS, RTF_GATEWAY };
+    size_t needed;
+    if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0) {
+        return 0;
+    }
+    char data[needed];
+    if (sysctl(mib, 6, data, &needed, NULL, 0)) {
+        return 0;
+    }
+    char* buf = (char*) data;
+    char* lim = buf + needed;
+    char* next;
+    struct rt_msghdr* rtm;
+    struct sockaddr* sa;
+    struct sockaddr_in* sin;
+    struct sockaddr_dl* sdl;
+    int found = 0;
+    for (next = buf; next < lim; next += rtm->rtm_msglen) {
+        rtm = (struct rt_msghdr*) next;
+        sa = (struct sockaddr *)(rtm + 1);
+        for (int i = 0; i < RTAX_MAX; i++) {
+            if (rtm->rtm_addrs & (1 << i)) {
+                if (i == RTAX_DST) {
+                    sin = (struct sockaddr_in*) sa;
+                    if (sin->sin_addr.s_addr == 0) {
+                        found = 1;
+                    }
+                }
+                if (found && i == RTAX_GATEWAY) {
+                    if (sa->sa_family == AF_INET) {
+                        sin = (struct sockaddr_in*) sa;
+                        return sin->sin_addr.s_addr;
+                    }
+                }
+                sa = (struct sockaddr *)((char *)sa + ROUNDUP(sa->sa_len, sizeof(long)));
+            }
+        }
+    }
+    return 0;
 }
 
 uint16_t sys_htons(uint16_t n) {
