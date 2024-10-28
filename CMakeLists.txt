@@ -20,6 +20,10 @@ endif()
 if (IS_BSD)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(PCAP REQUIRED libpcap)
+    set(LIB_INCLUDES ${PCAP_INCLUDE_DIRS})
+    set(LIBS ${PCAP_LIBRARIES})
+elseif (WIN32)
+    set(LIBS ws2_32)
 endif()
 
 set(SOURCES
@@ -44,12 +48,12 @@ else()
 endif()
 
 target_link_libraries(${PROJECT_NAME}
-    ${PCAP_LIBRARIES}
+    ${LIBS}
 )
 
 target_include_directories(${PROJECT_NAME}
     PRIVATE include
-    PUBLIC ${PCAP_INCLUDE_DIRS}
+    PUBLIC ${LIB_INCLUDES}
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES VERSION ${PROJECT_VERSION})

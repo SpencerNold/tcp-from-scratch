@@ -3,4 +3,10 @@
 
 #include "rawsocket.h"
 
+#pragma comment(lib, "Ws2_32.lib")
+
+void* rawsock_open(const char*) {
+    WSAData data;
+}
+
 #endif
