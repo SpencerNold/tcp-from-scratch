@@ -4,8 +4,12 @@
 #include "rawsocket.h"
 
 #include "network.h"
+#include "ip.h"
 #include <pcap.h>
 
+// TODO When adding win/nux support, move a lot of the functionality into a joined uni source file
+// TODO Also add support for binding a listening socket to filter only the wanted TCP ports
+// TODO Also add options/flags for filtering
 int listening = 0;
 
 uint8_t src_mac[6];
@@ -15,10 +19,27 @@ void (*raw_handler)(void*, const unsigned char*, int) = NULL;
 void (*ethernet_handler)(void*, const unsigned char*, int) = NULL;
 void (*ipv4_handler)(void*, const unsigned char*, int) = NULL;
 void (*arp_handler)(void*, const unsigned char*, int) = NULL;
+void (*tcp_handler)(void*, const unsigned char*, int) = NULL;
+
+void packet_ipv4(pcap_t*, const unsigned char*, int);
+void packet_arp(pcap_t*, const unsigned char*, int);
+void packet_tcp(pcap_t*, const unsigned char*, int);
+void packet_ethernet(pcap_t*, const unsigned char*, int);
 
 void packet_ipv4(pcap_t* handle, const unsigned char* data, int length) {
+    if (length < 20)
+        return;
+    if ((*((uint32_t*) (data + 16))) != src_addr) {
+        return;
+    }
     if (ipv4_handler != NULL) {
         ipv4_handler(handle, data, length);
+    }
+    size_t h_len = ip_get_ihl(data[0]) * 4;
+    if (length < h_len)
+        return;
+    if (data[9] == 6) {
+        packet_tcp(handle, data + h_len, length - h_len);
     }
 }
 
@@ -28,16 +49,35 @@ void packet_arp(pcap_t* handle, const unsigned char* data, int length) {
     }
 }
 
+void packet_tcp(pcap_t* handle, const unsigned char* data, int length) {
+    if (tcp_handler != NULL) {
+        tcp_handler(handle, data, length);
+    }
+}
+
 void packet_ethernet(pcap_t* handle, const unsigned char* data, int length) {
+    if (length < 6)
+        return;
+    for (int i = 0; i < 6; i++) {
+        if (data[i] != src_mac[i]) {
+            return;
+        }
+    }
     if (ethernet_handler != NULL) {
         ethernet_handler(handle, data, length);
     }
     uint16_t type = sys_htons(((uint16_t*) (data + 12))[0]);
+    size_t h_len = 14;
+    if (type == 0x8100) {
+        h_len = 16;
+    }
+    if (length < h_len)
+        return;
     // TODO Maybe support more types in the future
     if (type == 0x0800) {
-        packet_ipv4(handle, data, length);
+        packet_ipv4(handle, data + h_len, length - h_len);
     } else if (type == 0x0806) {
-        packet_arp(handle, data, length);
+        packet_arp(handle, data + h_len, length - h_len);
     }
 }
 
@@ -46,10 +86,6 @@ void packet_handler(u_char* user_data, const struct pcap_pkthdr* header, const u
     int length = header->caplen;
     if (raw_handler != NULL) {
         raw_handler(handle, (const unsigned char*) packet, length);
-    }
-    for (int i = 0; i < 6; i++) {
-        if (packet[i] != src_mac[i])
-            return;
     }
     packet_ethernet(handle, (const unsigned char*) packet, length);
 }
@@ -88,6 +124,11 @@ void rawsock_listen_ipv4(void* handle, void (*handler)(void*, const unsigned cha
 
 void rawsock_listen_arp(void* handle, void (*handler)(void*, const unsigned char*, int)) {
     arp_handler = handler;
+    rs_listen((pcap_t*) handle);
+}
+
+void rawsock_listen_tcp(void* handle, void (*handler)(void*, const unsigned char*, int)) {
+    tcp_handler = handler;
     rs_listen((pcap_t*) handle);
 }
 

@@ -5,6 +5,7 @@
 #include "network.h"
 
 #define SYN 2
+#define ACK 16
 
 struct tcp_h {
     uint16_t src_port;
@@ -19,5 +20,7 @@ struct tcp_h {
 } __attribute__((packed));
 
 void tcp_send_syn(void*, struct network_data*, uint16_t, uint16_t);
+void tcp_send_syn_ack(void*, struct network_data*, struct tcp_h*);
+void tco_send_ack();
 
 #endif

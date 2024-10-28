@@ -119,4 +119,10 @@ uint32_t sys_inet_addr(const char* addr) {
     return (uint32_t) inet_addr(addr);
 }
 
+char* sys_inet_ntoa(uint32_t addr) {
+    struct in_addr in_addr;
+    in_addr.s_addr = addr;
+    return inet_ntoa(in_addr);
+}
+
 #endif

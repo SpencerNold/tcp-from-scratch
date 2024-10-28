@@ -19,6 +19,8 @@ struct ip_h {
 } __attribute__((packed));
 
 void ip_set_ihl_ver(struct ip_h*, unsigned char, unsigned char);
+int ip_get_ihl(unsigned char);
+int ip_get_ver(unsigned char);
 
 void ip_update_check(uint32_t*, uint16_t*, int, int);
 void ip_update_check_num(uint32_t*, uint16_t);

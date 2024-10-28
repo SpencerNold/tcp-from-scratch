@@ -1,6 +1,7 @@
 #include "ip.h"
 
 int endian() {
+    // Optimization *should* simplify this in dead code removal
     int i = 1;
     return (int) *((unsigned char*) &i) == 1;
 }
@@ -13,15 +14,33 @@ void ip_set_ihl_ver(struct ip_h* header, unsigned char ihl, unsigned char ver) {
     }
 }
 
+int ip_get_ihl(unsigned char x) {
+    if (endian()) {
+        return (unsigned char) (x & 0x0F);
+    } else {
+        return (unsigned char) (x & 0xF0) >> 4;
+    }
+}
+
+int ip_get_ver(unsigned char x) {
+    if (endian()) {
+        return (unsigned char) (x & 0xF0) >> 4;
+    } else {
+        return (unsigned char) (x & 0x0F);
+    }
+}
+
 void ip_update_check(uint32_t* sum, uint16_t* buffer, int offset, int size) {
     if (offset)
         buffer = (uint16_t*) (((char*) buffer) + offset);
+    register uint32_t value = *sum;
     while (size > 1) {
-        *sum += *buffer++;
+        value += *buffer++;
         size -= sizeof(uint16_t);
     }
     if (size)
-        *sum += *(uint8_t*) buffer;
+        value += *(uint8_t*) buffer;
+    *sum = value;
 }
 
 void ip_update_check_num(uint32_t* sum, uint16_t num) {
@@ -29,8 +48,8 @@ void ip_update_check_num(uint32_t* sum, uint16_t num) {
 }
 
 uint16_t ip_finish_check(uint32_t* sum) {
-    uint32_t value = *sum;
-    value = (value >> 16) + (value & 0xffff);
-    value += (value >> 16);
+    register uint32_t value = *sum;
+    while (value >> 16)
+        value = (value & 0xffff) + (value >> 16);
     return (uint16_t) (~value);
 }
