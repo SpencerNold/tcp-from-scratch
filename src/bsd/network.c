@@ -17,7 +17,7 @@ uint32_t stored_src_ipv4_address = 0;
 int is_src_mac_stored = 0, is_src_ipv4_stored = 0;
 char stored_interface[16] = {0};
 
-void store_inet_addrs(const char* interface) {
+void store_inet_addrs(const void* interface) {
     struct ifaddrs *ifaddr, *ifa;
     if (getifaddrs(&ifaddr) == -1) {
         return;
@@ -26,7 +26,7 @@ void store_inet_addrs(const char* interface) {
         if (ifa->ifa_addr == NULL) {
             continue;
         }
-        if (strcmp(ifa->ifa_name, interface) == 0) {
+        if (strcmp(ifa->ifa_name, (const char*) interface) == 0) {
             // MAC Addr
             if (ifa->ifa_addr->sa_family == AF_LINK) {
                 struct sockaddr_dl* sdl = (struct sockaddr_dl*) ifa->ifa_addr;
@@ -45,11 +45,11 @@ void store_inet_addrs(const char* interface) {
     freeifaddrs(ifaddr);
     is_src_mac_stored = 1;
     is_src_ipv4_stored = 1;
-    strcpy((char*) stored_interface, interface);
+    strcpy((char*) stored_interface, (const char*) interface);
 }
 
-int net_get_src_mac(const char* interface, uint8_t* mac) {
-    if (!is_src_mac_stored || strcmp((char*) stored_interface, interface) != 0) {
+int net_get_src_mac(const void* interface, uint8_t* mac) {
+    if (!is_src_mac_stored || strcmp((char*) stored_interface, (const char*) interface) != 0) {
         store_inet_addrs(interface);
     }
     for (int i = 0; i < 6; i++)
@@ -57,8 +57,8 @@ int net_get_src_mac(const char* interface, uint8_t* mac) {
     return 0;
 }
 
-uint32_t net_get_src_addr(const char* interface) {
-    if (!is_src_ipv4_stored || strcmp((char*) stored_interface, interface) != 0) {
+uint32_t net_get_src_addr(const void* interface) {
+    if (!is_src_ipv4_stored || strcmp((char*) stored_interface, (const char*) interface) != 0) {
         store_inet_addrs(interface);
     }
     return stored_src_ipv4_address;

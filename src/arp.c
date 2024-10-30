@@ -17,7 +17,7 @@ int arp_request(const char* interface, uint32_t dst_addr) {
     arpr->hlen = 6;
     arpr->plen = 4;
     arpr->oper = sys_htons(1);
-    memcpy(arpr->sha, src_mac, 6);
+    mac_cpy(arpr->sha, src_mac);
     arpr->spa = net_get_src_addr(interface);
     // skip tha as it should remain 0
     arpr->tpa = dst_addr;

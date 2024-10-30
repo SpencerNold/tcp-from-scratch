@@ -1,5 +1,5 @@
 #include "os.h"
-#if LINUX_OS
+#ifdef LINUX_OS
 
 #include "thread.h"
 
