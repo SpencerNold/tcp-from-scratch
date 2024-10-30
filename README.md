@@ -22,6 +22,19 @@ cmake --build build
 ```
 Any projects using this library will require root access to open the actual raw socket.
 ### Windows
-Requires npcap...
+#### Dependencies
+This library requires the npcap library, the windows version of pcap. This can be done first by going to the npcap website and running the installer, the default settings should* work fine. You then want to download the npcap SDK. If you intend to use my scripts to set up the project, I would recommend unzipping into the `C:\Program Files\Npcap` directory (which should be created by the npcap installer).
+#### Setup
+Setting up the library to be build can be done easily with the *.sh scripts I've written, all of which require cmake to be installed and in your path.
+```
+./cmake_init_shared.sh # To generate a dynamically linked library
+./cmake_init_static.sh # To generate a statically linked library
+```
 ### Linux
 Support is not finished yet, likely will not require any dependencies.
+#### Setup
+Setting up the library to be build can be done easily with the *.sh scripts I've written, all of which require cmake to be installed and in your path.
+```
+./cmake_init_shared.sh # To generate a dynamically linked library
+./cmake_init_static.sh # To generate a statically linked library
+```
