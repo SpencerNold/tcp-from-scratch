@@ -1,7 +1,15 @@
 #ifndef IP_H
 #define IP_H
 
-#include <inttypes.h>
+#include "os.h"
+#ifdef WIN_OS
+    #include <stdint.h>
+    #define PACKED
+    #pragma pack(push, 1)
+#else
+    #include <inttypes.h>
+    #define PACKED __attribute__((packed))
+#endif
 
 #define TCP 0x06
 
@@ -16,7 +24,11 @@ struct ip_h {
     uint16_t checksum;
     uint32_t src_addr;
     uint32_t dst_addr;
-} __attribute__((packed));
+} PACKED;
+
+#ifdef WIN_OS
+    #pragma pack(pop)
+#endif
 
 void ip_set_ihl_ver(struct ip_h*, unsigned char, unsigned char);
 int ip_get_ihl(unsigned char);

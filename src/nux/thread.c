@@ -1,5 +1,5 @@
-#include <stdio.h>
-#if defined(unix) || defined(__unix) || defined(__unix__) || defined(__APPLE__) || defined(__MACH__) || defined(__FreeBSD__)
+#include "os.h"
+#if LINUX_OS
 
 #include "thread.h"
 

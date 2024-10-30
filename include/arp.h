@@ -1,7 +1,15 @@
 #ifndef ARP_H
 #define ARP_H
 
-#include "inttypes.h"
+#include "os.h"
+#ifdef WIN_OS
+    #include <stdint.h>
+    #define PACKED
+    #pragma pack(push, 1)
+#else
+    #include <inttypes.h>
+    #define PACKED __attribute__((packed))
+#endif
 
 struct arp_req {
     uint16_t htype;
@@ -13,9 +21,12 @@ struct arp_req {
     uint32_t spa;
     uint8_t tha[6];
     uint32_t tpa;
-} __attribute__((packed));
+} PACKED;
 
-int arp_table_lookup(uint32_t, uint8_t*);
+#ifdef WIN_OS
+    #pragma pack(pop)
+#endif
+
 int arp_request(const char*, uint32_t);
 
 

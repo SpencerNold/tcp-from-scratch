@@ -1,5 +1,5 @@
-#include <stdio.h>
-#if defined(unix) || defined(__unix) || defined(__unix__) && !defined(__APPLE__) && !defined(__MACH__) && !defined(__FreeBSD__)
+#include "os.h"
+#ifdef LINUX_NON_BSD_OS
 
 #include "rawsocket.h"
 

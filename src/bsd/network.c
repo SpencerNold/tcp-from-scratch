@@ -1,5 +1,5 @@
-#include <stdio.h>
-#if defined(__APPLE__) || defined(__MACH__) || defined(__FreeBSD__)
+#include "os.h"
+#ifdef BSD_OS
 
 #include "network.h"
 
@@ -10,6 +10,7 @@
 #include <sys/sysctl.h>
 #include <net/route.h>
 #include <string.h>
+#include <netinet/if_ether.h>
 
 uint8_t stored_src_mac_address[6];
 uint32_t stored_src_ipv4_address = 0;
@@ -65,7 +66,7 @@ uint32_t net_get_src_addr(const char* interface) {
 
 #define ROUNDUP(a, size) (((a) & ((size) - 1)) ? (1 + ((a) | ((size) - 1))) : (a))
 
-uint32_t net_get_default_gateway() {
+uint32_t net_get_default_gateway(const void* interface) {
     int mib[6] = { CTL_NET, PF_ROUTE, 0, AF_INET, NET_RT_FLAGS, RTF_GATEWAY };
     size_t needed;
     if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0) {
@@ -105,6 +106,38 @@ uint32_t net_get_default_gateway() {
         }
     }
     return 0;
+}
+
+int sys_arp_table_lookup(uint32_t address, uint8_t* mac) {
+    int mib[6] = { CTL_NET, PF_ROUTE, 0, AF_INET, NET_RT_FLAGS, RTF_LLINFO };
+    size_t needed;
+    if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0) {
+        return -2;
+    }
+    char data[needed];
+    if (sysctl(mib, 6, data, &needed, NULL, 0) < 0) {
+        return -3;
+    }
+    char* buf = (char*) data;
+    char* lim = buf + needed;
+    char* next;
+    struct rt_msghdr* rtm;
+    struct sockaddr_inarp* sin;
+    struct sockaddr_dl* sdl;
+    for (next = buf; next < lim; next += rtm->rtm_msglen) {
+        rtm = (struct rt_msghdr*) next;
+        sin = (struct sockaddr_inarp*) (rtm + 1);
+        sdl = (struct sockaddr_dl*) (sin + 1);
+        if (address != sin->sin_addr.s_addr) {
+            continue;
+        }
+        unsigned char* mac_addr = (unsigned char*) LLADDR(sdl);
+        for (int i = 0; i < 6; i++) {
+            mac[i] = mac_addr[i];
+        }
+        return 0;
+    }
+    return -1;
 }
 
 uint16_t sys_htons(uint16_t n) {

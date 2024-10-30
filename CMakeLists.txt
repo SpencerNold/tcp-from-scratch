@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.29.6)
+cmake_minimum_required(VERSION 3.29.3)
 
 project(rawtcp VERSION 1.0.0 DESCRIPTION "Cross-platform Raw TCP Library")
 
@@ -10,7 +10,9 @@ if (NOT LIB_TYPE)
     set(LIB_TYPE STATIC)
 endif()
 
-set(CMAKE_C_FLAGS_DEBUG "-g")
+if (NOT WIN32)
+    set(CMAKE_C_FLAGS_DEBUG "-g")
+endif()
 set(CMAKE_C_FLAGS_RELEASE "-O3")
 
 if (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin" OR ${CMAKE_SYSTEM_NAME} MATCHES "BSD$")
@@ -23,13 +25,15 @@ if (IS_BSD)
     set(LIB_INCLUDES ${PCAP_INCLUDE_DIRS})
     set(LIBS ${PCAP_LIBRARIES})
 elseif (WIN32)
-    set(LIBS ws2_32)
+    set(LIB_INCLUDES ${NPCAP_INCLUDE})
+    set(LIBS ${NPCAP_LIB}/Packet.lib ${NPCAP_LIB}/wpcap.lib)
 endif()
 
 set(SOURCES
-    src/bsd/rawsock.c src/nux/rawsock.c src/win/rawsock.c
+    src/bsd/rawsock.c src/nux/rawsock.c src/win/rawsock.c src/uni/rawsock.c
     src/bsd/network.c src/nux/network.c src/win/network.c src/uni/network.c
     src/nux/thread.c src/win/thread.c
+    src/endian.c
     src/eth.c
     src/arp.c
     src/ip.c

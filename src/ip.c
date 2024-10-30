@@ -1,10 +1,5 @@
 #include "ip.h"
-
-int endian() {
-    // Optimization *should* simplify this in dead code removal
-    int i = 1;
-    return (int) *((unsigned char*) &i) == 1;
-}
+#include "endian.h"
 
 void ip_set_ihl_ver(struct ip_h* header, unsigned char ihl, unsigned char ver) {
     if (endian()) {

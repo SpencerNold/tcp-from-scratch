@@ -8,5 +8,6 @@
 #include "rawsocket.h"
 #include "tcp.h"
 #include "thread.h"
+#include "os.h"
 
 #endif

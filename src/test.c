@@ -1,9 +1,28 @@
-#include "rawsocket.h"
-#include "network.h"
-#include "tcp.h"
-#include "thread.h"
+#include "rawtcp.h"
 
 #include <stdio.h>
+
+#ifdef WIN_OS
+
+int main() {
+    uint32_t iface_idx;
+    get_best_interface(sys_inet_addr("128.119.245.12"), &iface_idx);
+
+    uint8_t mac[6];
+    net_get_src_mac(&iface_idx, mac);
+    uint32_t addr = net_get_src_addr(&iface_idx);
+    uint32_t gateway = net_get_default_gateway(&iface_idx);
+    uint8_t dst_mac[6];
+    sys_arp_table_lookup(gateway, dst_mac);
+
+    printf("IPv4=%s\n", sys_inet_ntoa(addr));
+    printf("Mac=%02X:%02X:%02X:%02X:%02X:%02X\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    printf("Default-Gateway=%s\n", sys_inet_ntoa(gateway));
+    printf("DST Mac=%02X:%02X:%02X:%02X:%02X:%02X\n", dst_mac[0], dst_mac[1], dst_mac[2], dst_mac[3], dst_mac[4], dst_mac[5]);
+}
+    
+#else
+
 #include <arpa/inet.h>
 
 void ipv4_handle(void* handle, const unsigned char* data, int length) {
@@ -44,3 +63,6 @@ int main() {
 
     rawsock_close(handle);
 }
+
+#endif
+
