@@ -64,6 +64,14 @@ uint32_t net_get_src_addr(const void* interface) {
     return stored_src_ipv4_address;
 }
 
+int get_best_interface(uint32_t addr, void* dst_iface) {
+    return 0; // TODO Implement
+}
+
+char* get_interface_from_index(void* iface) {
+    return NULL;
+}
+
 #define ROUNDUP(a, size) (((a) & ((size) - 1)) ? (1 + ((a) | ((size) - 1))) : (a))
 
 uint32_t net_get_default_gateway(const void* interface) {

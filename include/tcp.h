@@ -32,7 +32,7 @@ struct tcp_h {
 #define ACK 16
 
 void tcp_send_syn(void*, struct network_data*, uint16_t, uint16_t);
-void tcp_send_syn_ack(void*, struct network_data*, struct tcp_h*);
-void tco_send_ack();
+void tcp_send_syn_ack(void*, struct tcp_h*);
+void tcp_send_ack(void*, struct tcp_h*);
 
 #endif

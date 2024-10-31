@@ -8,7 +8,6 @@
     #include <inttypes.h>
 #endif
 
-
 struct network_data {
     uint32_t default_gateway;
     uint8_t dst_mac[6];
@@ -19,7 +18,10 @@ struct network_data {
     uint16_t src_port;
 };
 
+// windows only
 int get_best_interface(uint32_t, void*);
+// windows only, char* needs to be at least 256 bytes long
+void get_interface_from_index(uint32_t, char*);
 
 void net_load_addrs(const void*, struct network_data*);
 

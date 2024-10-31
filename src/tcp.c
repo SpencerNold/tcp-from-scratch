@@ -12,6 +12,15 @@
 #define TCP_SIZE 20
 #define SIZE ETH_SIZE + IP_SIZE + TCP_SIZE
 
+void extract_network_data(uint8_t* ptr, struct network_data* addrs) {
+    // Swaps src and dst addresses
+    mac_cpy(ptr, addrs->src_mac); // cpy dst -> src
+    mac_cpy(ptr + 6, addrs->dst_mac); // cpy src -> dst
+    ptr += (ETH_SIZE + 12);
+    addrs->dst_addr = *((uint32_t*) ptr); // cpy src -> dst
+    addrs->src_addr = *((uint32_t*) (ptr + 4)); // cpy dst -> src
+}
+
 void construct_generic_eth_ip(uint8_t* data, struct network_data* addrs) {
     struct eth_h* eth = (struct eth_h*) data;
     mac_cpy(eth->dst_mac, addrs->dst_mac);
@@ -60,10 +69,12 @@ void tcp_send_syn(void* handle, struct network_data* addrs, uint16_t src_port, u
     rawsock_send(handle, data, SIZE);
 }
 
-void tcp_send_syn_ack(void* handle, struct network_data* addrs, struct tcp_h* syn) {
+void tcp_send_syn_ack(void* handle, struct tcp_h* syn) {
     char buf[SIZE] = {0};
     uint8_t* data = (uint8_t*) buf;
-    construct_generic_eth_ip(data, addrs);
+    struct network_data addrs;
+    extract_network_data(data - (ETH_SIZE + IP_SIZE), &addrs);
+    construct_generic_eth_ip(data, &addrs);
 
     struct tcp_h* tcp = (struct tcp_h*) (data + ETH_SIZE + IP_SIZE);
     tcp->src_port = syn->dst_port;
@@ -72,6 +83,32 @@ void tcp_send_syn_ack(void* handle, struct network_data* addrs, struct tcp_h* sy
     tcp->ack = syn->seq + 1;
     tcp->offs = 0x50;
     tcp->flags = (SYN | ACK);
+    tcp->win = sys_htons(65535);
+    tcp->urp = 0;
+    uint32_t sum = 0;
+    ip_update_check(&sum, (uint16_t*) (data + ETH_SIZE), 12, 8);
+    ip_update_check_num(&sum, sys_htons(6));
+    ip_update_check_num(&sum, sys_htons(20));
+    ip_update_check(&sum, (uint16_t*) tcp, 0, TCP_SIZE);
+    tcp->checksum = ip_finish_check(&sum);
+
+    rawsock_send(handle, data, SIZE);
+}
+
+void tcp_send_ack(void* handle, struct tcp_h* syn_ack) {
+    char buf[SIZE] = {0};
+    uint8_t* data = (uint8_t*) buf;
+    struct network_data addrs;
+    extract_network_data(data - (ETH_SIZE + IP_SIZE), &addrs);
+    construct_generic_eth_ip(data, &addrs);
+    
+    struct tcp_h* tcp = (struct tcp_h*) (data + ETH_SIZE + IP_SIZE);
+    tcp->src_port = syn_ack->dst_port;
+    tcp->dst_port = syn_ack->src_port;
+    tcp->seq = syn_ack->seq + 1;
+    tcp->ack = syn_ack->ack + 1;
+    tcp->offs = 0x50;
+    tcp->flags = ACK;
     tcp->win = sys_htons(65535);
     tcp->urp = 0;
     uint32_t sum = 0;
